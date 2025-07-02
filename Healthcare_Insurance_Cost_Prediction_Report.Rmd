@@ -1,6 +1,6 @@
 ---
 title: "ins_pro"
-author: "Srihari Myla Venkata"
+author: "Arun Soora"
 date: "2024-05-05"
 output:
   pdf_document: default
