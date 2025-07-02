@@ -1,0 +1,303 @@
+---
+title: "ins_pro"
+author: "Srihari Myla Venkata"
+date: "2024-05-05"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(Hmisc)
+
+# Read the data
+data <- read.csv("C:\\Users\\mvsri\\Downloads\\insurance.csv")
+
+# View the first few rows and summary statistics of the data
+head(data)
+summary(data)
+
+# Check the dimensions (rows and columns) of the dataframe
+dimensions <- dim(data)
+num_rows <- dimensions[1]
+num_columns <- dimensions[2]
+
+# Print the number of rows and columns
+cat("Number of rows:", num_rows, "\n")
+cat("Number of columns:", num_columns, "\n")
+
+# Check the structure of the dataframe to identify variable types
+str(data)
+
+```
+```{r}
+# Check for null values in the dataframe
+null_values <- is.na(data)
+
+# Check if there are any null values overall
+if (any(null_values)) {
+  cat("There are null values in the dataset.\n")
+  # Print the count of null values for each column
+  print(colSums(null_values))
+} else {
+  cat("There are no null values in the dataset.\n")
+}
+```
+
+```{r}
+# Visualize the distribution of charges
+hist(data$charges, main = "Distribution of Insurance Charges", xlab = "Charges", col = "skyblue")
+
+# Explore the relationship between age and charges
+plot(data$age, data$charges, main = "Age vs. Charges", xlab = "Age", ylab = "Charges", col = "blue")
+
+# Explore the relationship between BMI and charges
+plot(data$bmi, data$charges, main = "BMI vs. Charges", xlab = "BMI", ylab = "Charges", col = "green")
+
+# Compare charges by gender
+boxplot(charges ~ sex, data = data, main = "Charges by Gender", xlab = "Gender", ylab = "Charges", col = c("pink", "lightblue"))
+
+# Compare charges by smoker status
+boxplot(charges ~ smoker, data = data, main = "Charges by Smoker Status", xlab = "Smoker Status", ylab = "Charges", col = c("lightgreen", "orange"))
+
+# Compare charges by region
+boxplot(charges ~ region, data = data, main = "Charges by Region", xlab = "Region", ylab = "Charges", col = "yellow")
+
+# Explore the relationship between the number of children and charges
+plot(data$children, data$charges, main = "Number of Children vs. Charges", xlab = "Number of Children", ylab = "Charges", col = "purple")
+
+# Identify outliers or anomalies in charges
+boxplot(data$charges, main = "Charges Boxplot", ylab = "Charges", col = "red")
+
+# Create a scatterplot matrix to visualize relationships between variables
+pairs(data[, c("age", "bmi", "children", "charges")], main = "Scatterplot Matrix", col = "blue")
+
+# Add Q-Q plots
+par(mfrow = c(2, 2)) # Set the layout to 2x2 for Q-Q plots
+for (variable in c("age", "bmi", "charges")) {
+  if (is.numeric(data[[variable]])) {
+    qqnorm(data[[variable]], main = paste("Q-Q Plot of", variable), col = "green")
+    qqline(data[[variable]], col = "red")
+  }
+}
+
+
+```
+```{r}
+# Load necessary library
+library(Hmisc)
+
+# Load the dataset (update the path as needed)
+insurance_data <- read.csv("insurance.csv")  # Make sure the file path is correct
+
+# Check for missing values
+sum(is.na(insurance_data))
+
+# Remove rows with missing values (if any)
+insurance_data <- na.omit(insurance_data)
+
+# Convert non-numeric columns to numeric if possible
+insurance_data <- type.convert(insurance_data, as.is = TRUE)
+
+# Convert categorical variables to factors
+insurance_data$sex <- as.factor(insurance_data$sex)
+insurance_data$smoker <- as.factor(insurance_data$smoker)
+insurance_data$region <- as.factor(insurance_data$region)
+
+# Identify categorical columns
+categorical_cols <- c("sex", "smoker", "region") 
+
+# Convert categorical columns to numerical using one-hot encoding
+encoded_data <- model.matrix(~ 0 + ., data = insurance_data[, categorical_cols])
+
+# Combine the encoded columns with the original dataframe
+insurance_data_numeric <- cbind(insurance_data[, !names(insurance_data) %in% categorical_cols], encoded_data)
+
+# Compute Spearman's correlation
+cor_matrix <- rcorr(as.matrix(insurance_data_numeric), type = "spearman")
+
+# Print the correlation matrix
+print(cor_matrix$r)
+
+```
+```{r}
+# Load the corrplot library
+library(corrplot)
+
+# Visualize the Spearman correlation matrix using a heatmap
+corrplot(cor_matrix$r, method = "color", 
+         main = "Spearman Correlation Matrix", 
+         type = "upper", 
+         tl.col = "black", 
+         tl.cex = 0.8, 
+         addCoef.col = "black")
+```
+
+```{r}
+# Filter all numerical columns (excluding the target variable 'charges')
+numeric_cols <- data %>%
+  select_if(is.numeric)
+
+# Exclude the target variable 'charges'
+numeric_cols <- numeric_cols %>%
+  select(-charges)
+
+# Filter encoded numerical columns (if you've encoded categorical variables)
+encoded_numeric_cols <- data %>%
+  select(starts_with("encoded_"))  # Adjust this based on the column names after encoding
+
+# Combine all numerical columns
+all_numeric_cols <- cbind(numeric_cols, encoded_numeric_cols)
+
+# Define a function to binarize numeric variables
+binarize_numeric <- function(x) {
+  ifelse(x >= median(x), "high", "low")
+}
+
+# Perform t-tests for each numeric column
+t_test_results <- lapply(all_numeric_cols, function(col) {
+  # Binarize the numeric variable
+  binarized_col <- binarize_numeric(col)
+  # Perform t-test
+  t_test_result <- t.test(data$charges ~ binarized_col, data = data)
+  return(t_test_result)
+})
+
+# Print t-test results
+names(t_test_results) <- names(all_numeric_cols)
+t_test_results
+
+```
+```{r}
+
+# Perform chi-square tests for each categorical column
+chi_square_results <- lapply(categorical_cols, function(col) {
+  chi_square_result <- chisq.test(table(data[[col]], data$charges > median(data$charges)))
+  return(chi_square_result)
+})
+
+# Print chi-square test results
+names(chi_square_results) <- categorical_cols
+chi_square_results
+
+
+```
+```{r}
+# Perform Shapiro-Wilk test for normality
+shapiro_test_result <- shapiro.test(data$charges)
+
+# Print the test result
+shapiro_test_result
+
+```
+```{r}
+# Filter categorical and numerical variables
+categorical_vars <- c("sex", "smoker", "region")
+numeric_vars <- c("age", "bmi", "children")
+
+# Perform Kruskal-Wallis test for categorical variables
+kruskal_cat <- lapply(categorical_vars, function(var) {
+  kruskal.test(charges ~ get(var), data = data)
+})
+
+# Perform Kruskal-Wallis test for numerical variables
+kruskal_num <- lapply(numeric_vars, function(var) {
+  kruskal.test(data$charges ~ data[[var]])
+})
+
+# Print results for categorical variables
+cat_results <- data.frame(
+  Variable = categorical_vars,
+  Statistic = sapply(kruskal_cat, function(x) x$statistic),
+  P_Value = sapply(kruskal_cat, function(x) x$p.value)
+)
+print("Kruskal-Wallis test results for categorical variables:")
+print(cat_results)
+
+# Print results for numerical variables
+num_results <- data.frame(
+  Variable = numeric_vars,
+  Statistic = sapply(kruskal_num, function(x) x$statistic),
+  P_Value = sapply(kruskal_num, function(x) x$p.value)
+)
+print("Kruskal-Wallis test results for numerical variables:")
+print(num_results)
+
+```
+
+```{r}
+# Fit a linear regression model
+linear_model <- lm(charges ~ age + bmi + children + sex + smoker + region, data = data)
+
+# Summary of the linear regression model
+summary(linear_model)
+
+```
+```{r}
+# Fit a multiple regression model
+multiple_model <- lm(charges ~ ., data = data)
+
+# Summary of the multiple regression model
+summary(multiple_model)
+
+```
+```{r}
+# Convert 'charges' to a binary variable based on a threshold (e.g., median)
+data$charges_binary <- ifelse(data$charges > median(data$charges), 1, 0)
+
+# Fit a logistic regression model
+logistic_model <- glm(charges_binary ~ age + bmi + children + sex + smoker + region, data = data, family = binomial)
+
+# Summary of the logistic regression model
+summary(logistic_model)
+
+```
+
+```{r}
+# Linear Regression
+# Simple Linear Regression
+simple_lm <- lm(charges ~ age, data = data)
+r_squared_simple <- summary(simple_lm)$r.squared
+
+# Multiple Linear Regression
+multiple_lm <- lm(charges ~ ., data = data)
+r_squared_multiple <- summary(multiple_lm)$r.squared
+
+# Combine R-squared values with model names
+model_names <- c("Simple Linear Regression", "Multiple Linear Regression")
+r_squared_values <- c(r_squared_simple, r_squared_multiple)
+
+# Create a bar plot to visualize R-squared values
+barplot(r_squared_values, 
+        names.arg = model_names,
+        ylab = "R-squared", main = "Comparison of R-squared Values",
+        col = c("skyblue", "salmon"), ylim = c(0, 1))
+
+# Add text labels for R-squared values
+text(x = 1:2, y = r_squared_values + 0.05, round(r_squared_values, 3), pos = 3, cex = 0.8, col = "black")
+
+
+
+```
+```{r}
+
+# Fit a multiple linear regression model
+lm_multiple <- lm(charges ~ ., data = data)
+
+# Obtain residuals from the model
+residuals_multiple <- residuals(lm_multiple)
+
+# Create residual plot with color
+plot(fitted(lm_multiple), residuals_multiple, 
+     xlab = "Fitted values", 
+     ylab = "Residuals", 
+     main = "Residual Plot (Multiple Regression)",
+     col = "blue")  # Specify color here
+
+# Add a horizontal line at y = 0 for reference
+abline(h = 0, col = "red", lty = 2)
+```
+
+
